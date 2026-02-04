@@ -52,7 +52,7 @@ class VoiceProcessor:
 
         # 3. TTS: Voice Cloning (Text -> Audio)
         # TODO: In a real app, we retrieve the user's voice_id from DB based on user_id
-        user_voice_id = "21m00Tcm4TlvDq8ikWAM" # Example ID (Rachel)
+        user_voice_id = "Aa6nEBJJMKJwJkCx8VU2" # Example ID (Rachel)
         
         if self.mock_mode:
             audio_url = "https://cdn.echonative.app/audio/demo_123.mp3"

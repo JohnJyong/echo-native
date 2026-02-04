@@ -1,8 +1,9 @@
-from fastapi import FastAPI
+import os
+
 from app.core.models import ProcessingRequest, ProcessingResponse
 from app.services.engine import VoiceProcessor
-import os
 from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
 
 # Load environment variables from .env file
 load_dotenv()
@@ -32,4 +33,9 @@ async def process_voice(request: ProcessingRequest):
         request.mode, 
         request.context_text
     )
+    
+    # Handle error cases
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=result["error"])
+    
     return result
