@@ -45,3 +45,23 @@ class LLMService:
                 "explanation": "Service unavailable", 
                 "diff": []
             }
+
+    async def translate_text(self, text: str, target_lang: str = "English") -> str:
+        """
+        Translates text to target language using GPT-4o.
+        Used for Panic Button mode.
+        """
+        system_prompt = f"You are a professional translator. Translate the following text into natural, native-sounding {target_lang}. Return ONLY the translation, no extra text."
+        
+        try:
+            response = await self.client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": text}
+                ]
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            print(f"Translation Error: {e}")
+            return text # Fallback
