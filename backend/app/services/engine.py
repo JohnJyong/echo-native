@@ -4,6 +4,7 @@ from app.services.pitch import PitchService
 from app.services.llm import LLMService
 from app.services.stt import SpeechToTextService
 from app.services.tts import TextToSpeechService
+from app.services.video import VideoService
 
 class VoiceProcessor:
     """
@@ -17,6 +18,7 @@ class VoiceProcessor:
         self.llm_service = LLMService()
         self.stt_service = SpeechToTextService()
         self.tts_service = TextToSpeechService()
+        self.video_service = VideoService()
 
     async def process_audio(self, audio_data: str, mode: str, context: str = "") -> Dict:
         """
@@ -86,4 +88,46 @@ class VoiceProcessor:
             "audio_url": audio_url,
             "pitch_data": pitch_result.get('data', []),
             "diff": correction.get('diff', [])
+        }
+
+    async def process_magic_clip(self, audio_data: str, clip_text: str, clip_filename: str) -> Dict:
+        """
+        Special pipeline for Magic Clip:
+        Audio -> (STT Optional) -> TTS (Perfect Clone) -> Video Swap
+        """
+        # 1. We assume the user wants to say the 'clip_text'. 
+        # We can skip STT/Correction if we trust the text, OR we can run STT to see if they were close.
+        # For MVP, let's just assume the target text is the clip_text.
+        
+        target_text = clip_text
+        
+        # 2. TTS: Generate perfect audio with user's voice
+        user_voice_id = "21m00Tcm4TlvDq8ikWAM" # Example ID
+        
+        if self.mock_mode:
+            # Return dummy video url
+            video_url = "/static/clips/godfather_demo.mp4" # Just return original for mock
+            audio_url = "https://cdn.echonative.app/audio/demo_123.mp3"
+        else:
+            # Generate Audio
+            audio_bytes = await self.tts_service.generate_audio(target_text, user_voice_id)
+            if not audio_bytes:
+                return {"error": "TTS failed"}
+            
+            b64_audio = base64.b64encode(audio_bytes).decode('utf-8')
+            
+            # Swap Audio in Video
+            try:
+                video_url = await self.video_service.swap_audio(clip_filename, b64_audio)
+            except Exception as e:
+                print(f"Video Swap Error: {e}")
+                return {"error": "Video processing failed"}
+
+            audio_url = f"data:audio/mpeg;base64,{b64_audio}"
+
+        return {
+            "video_url": video_url,
+            "audio_url": audio_url,
+            "original_text": "User Audio", 
+            "corrected_text": target_text
         }
