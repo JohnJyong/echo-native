@@ -3,3 +3,9 @@ uvicorn
 pytest
 pytest-asyncio
 pydantic
+openai
+elevenlabs
+praat-parselmouth
+numpy
+python-multipart
+python-dotenv
