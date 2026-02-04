@@ -1,0 +1,15 @@
+# General
+.DS_Store
+*.log
+node_modules/
+__pycache__/
+*.pyc
+.env
+venv/
+.idea/
+.vscode/
+
+# Mobile
+android/
+ios/
+.expo/
