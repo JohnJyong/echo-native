@@ -1,9 +1,11 @@
-from typing import Dict
 import base64
-from app.services.pitch import PitchService
+from typing import Dict
+
 from app.services.llm import LLMService
+from app.services.pitch import PitchService
 from app.services.stt import SpeechToTextService
 from app.services.tts import TextToSpeechService
+
 
 class VoiceProcessor:
     """
@@ -14,10 +16,15 @@ class VoiceProcessor:
     def __init__(self, mock_mode=True):
         self.mock_mode = mock_mode
         self.pitch_service = PitchService()
-        # Initialize services with env vars (handled inside classes)
-        self.llm_service = LLMService()
-        self.stt_service = SpeechToTextService()
-        self.tts_service = TextToSpeechService()
+        # Only initialize external services when not in mock mode
+        if not mock_mode:
+            self.llm_service = LLMService()
+            self.stt_service = SpeechToTextService()
+            self.tts_service = TextToSpeechService()
+        else:
+            self.llm_service = None
+            self.stt_service = None
+            self.tts_service = None
 
     async def process_audio(self, audio_data: str, mode: str, context: str = "") -> Dict:
         """
