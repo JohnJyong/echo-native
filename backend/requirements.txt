@@ -9,3 +9,4 @@ praat-parselmouth
 numpy
 python-multipart
 python-dotenv
+httpx

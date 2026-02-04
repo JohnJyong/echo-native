@@ -1,8 +1,9 @@
 from typing import Dict
+import base64
 from app.services.pitch import PitchService
 from app.services.llm import LLMService
-# import app.services.stt as stt_service (To be implemented)
-# import app.services.tts as tts_service (To be implemented)
+from app.services.stt import SpeechToTextService
+from app.services.tts import TextToSpeechService
 
 class VoiceProcessor:
     """
@@ -13,54 +14,63 @@ class VoiceProcessor:
     def __init__(self, mock_mode=True):
         self.mock_mode = mock_mode
         self.pitch_service = PitchService()
-        self.llm_service = LLMService(api_key="mock_key" if mock_mode else None)
+        # Initialize services with env vars (handled inside classes)
+        self.llm_service = LLMService()
+        self.stt_service = SpeechToTextService()
+        self.tts_service = TextToSpeechService()
 
     async def process_audio(self, audio_data: str, mode: str, context: str = "") -> Dict:
         """
         Main entry point for processing user voice.
         """
-        # 1. STT (Mock for now, easy to swap)
-        transcript = await self._stt(audio_data)
-        
-        # 2. LLM Correction (Real Logic implemented)
+        # 1. STT: Audio -> Text
+        if self.mock_mode:
+            transcript = "I am think about quit my job."
+        else:
+            transcript = await self.stt_service.transcribe(audio_data)
+            if not transcript:
+                return {"error": "STT failed"}
+
+        # 2. LLM: Grammar Correction & Diff
         if self.mock_mode:
             correction = {
                 "corrected": "I am thinking about quitting my job.",
-                "diff": [{"old": "quit", "new": "quitting", "type": "replace"}]
+                "explanation": "Corrected verb forms.",
+                "diff": [{"old": "think", "new": "thinking", "type": "replace"}, {"old": "quit", "new": "quitting", "type": "replace"}]
             }
         else:
             correction = await self.llm_service.correct_grammar(transcript, context)
         
-        # 3. TTS (Voice Cloning - Mock for now)
-        audio_url = await self._tts(correction['corrected'], "user_voice_id")
+        corrected_text = correction.get('corrected', transcript)
+
+        # 3. TTS: Voice Cloning (Text -> Audio)
+        # TODO: In a real app, we retrieve the user's voice_id from DB based on user_id
+        user_voice_id = "21m00Tcm4TlvDq8ikWAM" # Example ID (Rachel)
         
-        # 4. Pitch Extraction (Real Logic implemented)
-        # Note: In real flow, we extract pitch from the NEW audio (TTS result),
-        # but for Guitar Hero comparison, we also need pitch from ORIGINAL audio.
         if self.mock_mode:
-             pitch_result = {"data": [{"t": 0.1, "f": 120}, {"t": 0.2, "f": 125}]}
+            audio_url = "https://cdn.echonative.app/audio/demo_123.mp3"
+            # For pitch mock, we just return dummy data
+            pitch_result = {"data": [{"t": 0.1, "f": 120}, {"t": 0.2, "f": 125}]}
         else:
-             # Just demonstrating usage; in reality we need valid wav bytes here
-             # audio_data is passed as base64
-             pitch_result = self.pitch_service.extract_pitch(audio_data)
+            audio_bytes = await self.tts_service.generate_audio(corrected_text, user_voice_id)
+            
+            if audio_bytes:
+                # Convert to Data URI for immediate playback on frontend
+                b64_audio = base64.b64encode(audio_bytes).decode('utf-8')
+                audio_url = f"data:audio/mpeg;base64,{b64_audio}"
+                
+                # 4. Pitch Extraction (from the NEW perfect audio)
+                # We need to analyze the audio we just generated to show the "Target" pitch curve
+                pitch_result = self.pitch_service.extract_pitch(b64_audio)
+            else:
+                audio_url = ""
+                pitch_result = {"data": []}
 
         return {
             "original_text": transcript,
-            "corrected_text": correction.get('corrected', transcript),
+            "corrected_text": corrected_text,
             "explanation": correction.get('explanation', ''),
             "audio_url": audio_url,
             "pitch_data": pitch_result.get('data', []),
             "diff": correction.get('diff', [])
         }
-
-    async def _stt(self, audio: str) -> str:
-        if self.mock_mode:
-            return "I am think about quit my job."
-        # TODO: Implement Whisper
-        return "I am thinking about quitting my job."
-
-    async def _tts(self, text: str, voice_id: str) -> str:
-        if self.mock_mode:
-            return "https://cdn.echonative.app/audio/demo_123.mp3"
-        # TODO: Implement ElevenLabs
-        return "https://api.elevenlabs.io/..."
